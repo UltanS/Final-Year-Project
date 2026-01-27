@@ -1,1 +1,1 @@
-print("This is the tests folder!")
+"""This is the tests folder"""
