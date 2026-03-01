@@ -1,6 +1,6 @@
 '''
     Geometry.py is used for joint angle calculation in
-    this vision based lift analysis system
+    this vision based lift analysis system.
 '''
 import numpy as np
 
