@@ -3,7 +3,7 @@
     for rep phase detection in lift analysis
 '''
 
-class Motion_tracker:
+class MotionTracker:
     '''
         class: Motion_tracker
         description:
