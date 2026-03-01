@@ -39,8 +39,8 @@ def calculate_angle(point_a, vertex_point, point_c):
     # compute the cosine of the angle using the dot product formula:
     # cos(theta) = (v1 . v2) / (||v1|| * ||v2||)
     cosine_angle = np.dot(vector_1, vector_2) / (
-        np.linalg.norm(vector_1) 
-        * np.linalg.norm(vector_2) 
+        np.linalg.norm(vector_1)
+        * np.linalg.norm(vector_2)
         + 1e-7)
 
     # clip to prevent floating point precision errors
