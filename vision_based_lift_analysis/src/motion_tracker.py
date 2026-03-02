@@ -2,7 +2,7 @@
     motion_tracker.py provides vertical motion tracking
     for rep phase detection in lift analysis
 '''
-
+# pylint: disable=too-few-public-methods
 class MotionTracker:
     '''
         class: Motion_tracker
