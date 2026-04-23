@@ -46,8 +46,8 @@ def squat_parameters():
         "top_tolerance": 25,
 
         # Judging rules
-        "lockout_hip_angle": 165,
-        "lockout_knee_angle": 165,
+        "lockout_hip_angle": 150,
+        "lockout_knee_angle": 150,
 
         # Depth rule (basic version)
         "require_depth": True,
