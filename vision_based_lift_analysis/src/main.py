@@ -18,7 +18,6 @@ The analysis pipeline then:
 """
 
 # pylint: disable=no-member, too-many-locals, too-many-branches, too-many-statements
-
 import tkinter as tk
 from tkinter import filedialog, messagebox
 from tkinter import ttk
@@ -35,6 +34,56 @@ from lift_rules_module import (
 )
 from geometry import calculate_angle
 
+def draw_judgement(frame, result, reasons):
+    """
+    Draws GOOD LIFT or BAD LIFT feedback on the frame.
+
+    Parameters
+    ----------
+    frame : numpy.ndarray
+        Current video frame.
+    result : str
+        Either "good" or "bad".
+    reasons : list[str]
+        List of failure reasons if the lift is bad.
+    """
+
+
+    frame_width, _ = frame.shape
+
+    if result == "good":
+        cv2.putText(
+            frame,
+            "GOOD LIFT",
+            (frame_width // 4, 120),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            2,
+            (0, 255, 0),
+            5
+        )
+    elif result == "bad":
+        cv2.putText(
+            frame,
+            "BAD LIFT",
+            (frame_width // 3, 120),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            2,
+            (0, 0, 255),
+            5
+        )
+
+        text_y = 180
+        for reason in reasons:
+            cv2.putText(
+                frame,
+                reason,
+                (50, text_y),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                1,
+                (0, 0, 255),
+                3
+            )
+            text_y += 40
 
 def run_lift_analysis(video_path, lift_type, lift_side):
     """
