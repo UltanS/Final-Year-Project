@@ -30,7 +30,6 @@ from rep_state_machine import RepStateMachine
 from lift_rules_module import (
     bench_parameters,
     squat_parameters,
-    deadlift_parameters
 )
 from geometry import calculate_angle
 
@@ -49,7 +48,7 @@ def draw_judgement(frame, result, reasons):
     """
 
 
-    frame_width, _ = frame.shape
+    _, frame_width, _ = frame.shape
 
     if result == "good":
         cv2.putText(
@@ -94,7 +93,7 @@ def run_lift_analysis(video_path, lift_type, lift_side):
     video_path : str
         Path to the selected video file
     lift_type : str
-        Type of lift being analysed: bench, squat, or deadlift
+        Type of lift being analysed: bench or squat
     lift_side : str
         Visible body side in the video: left or right
     """
@@ -127,16 +126,23 @@ def run_lift_analysis(video_path, lift_type, lift_side):
         lift_parameters = bench_parameters()
     elif lift_type == "squat":
         lift_parameters = squat_parameters()
-    elif lift_type == "deadlift":
-        lift_parameters = deadlift_parameters()
     else:
-        raise ValueError("Lift type must be 'bench', 'squat', or 'deadlift'")
+        raise ValueError("Lift type must be 'bench', 'squat'")
 
     # initialise analysis components
     motion_tracker = MotionTracker()
     rep_state_machine = RepStateMachine(lift_parameters)
 
-    rep_count = 0
+    good_lift_count = 0
+    attempt_count = 0
+
+    judge_result = None
+    failure_reasons = []
+    judge_timer = 0
+    judge_display_duration = 80
+
+    depth_reached = False
+
 
     # video setup
     video_capture = cv2.VideoCapture(video_path)
@@ -159,6 +165,10 @@ def run_lift_analysis(video_path, lift_type, lift_side):
         pose_results = pose.process(rgb_frame)
 
         if not pose_results.pose_landmarks:
+            if judge_timer > 0:
+                draw_judgement(frame, judge_result, failure_reasons)
+                judge_timer -= 1
+
             cv2.imshow("Lift Detection", frame)
             if cv2.waitKey(frame_delay) & 0xFF == 27:
                 break
@@ -199,6 +209,7 @@ def run_lift_analysis(video_path, lift_type, lift_side):
             elbow_angle = calculate_angle(shoulder, elbow, wrist)
             lockout_valid = elbow_angle >= lift_parameters["lockout_angle"]
             primary_tracking_point = wrist
+        # squat
         else:
             tracked_vertical_position = int(hip[1])
 
@@ -210,6 +221,11 @@ def run_lift_analysis(video_path, lift_type, lift_side):
                 and knee_angle >= lift_parameters["lockout_knee_angle"]
             )
             primary_tracking_point = hip
+
+            # for a basic depth check, the hip should drop below the knee
+            if rep_state_machine.current_state in ["descent", "pause"]:
+                if hip[1] > knee[1]:
+                    depth_reached = True
 
         # update analysis state
         smoothed_vertical_position, vertical_velocity = motion_tracker.update(
@@ -223,9 +239,44 @@ def run_lift_analysis(video_path, lift_type, lift_side):
         )
 
         if rep_event == "rep_complete":
-            rep_count += 1
-            print(f"Rep {rep_count} complete")
+            attempt_count += 1
+            failure_reasons = []
+
+            if lift_type == "bench":
+                if lift_parameters["require_pause"]:
+                    if (
+                        rep_state_machine.pause_frame_count
+                        < lift_parameters["minimum_pause_frames"]
+                    ):
+                        failure_reasons.append("No pause on chest")
+
+                if lift_parameters["check_downward_motion"]:
+                    if "downward_on_ascent" in rep_state_machine.rep_flags:
+                        failure_reasons.append("Downward motion on ascent")
+
+            elif lift_type == "squat":
+                if lift_parameters["require_depth"] and not depth_reached:
+                    failure_reasons.append("No depth")
+
+                if lift_parameters["check_downward_motion"]:
+                    if "downward_on_ascent" in rep_state_machine.rep_flags:
+                        failure_reasons.append("Downward motion on ascent")
+
+            if failure_reasons:
+                judge_result = "bad"
+            else:
+                judge_result = "good"
+                good_lift_count += 1
+
+            print(
+                f"Attempt {attempt_count}: "
+                f"{judge_result.upper()} - {failure_reasons}"
+            )
+
+            judge_timer = judge_display_duration
+
             rep_state_machine.reset()
+            depth_reached = False
 
         # draw visual overlay
         mp_drawing.draw_landmarks(
@@ -271,14 +322,25 @@ def run_lift_analysis(video_path, lift_type, lift_side):
 
         cv2.putText(
             frame,
-            f"Reps: {rep_count}",
+            f"Good Reps: {good_lift_count}",
             (20, 80),
             cv2.FONT_HERSHEY_SIMPLEX,
             1,
             (0, 255, 0),
             2
         )
-
+        cv2.putText(
+            frame,
+            f"Attempts: {attempt_count}",
+            (20, 120),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.9,
+            (0, 255, 255),
+            2
+        )
+        if judge_timer > 0:
+            draw_judgement(frame, judge_result, failure_reasons)
+            judge_timer -= 1
         cv2.imshow("Lift Detection", frame)
 
         if cv2.waitKey(frame_delay) & 0xFF == 27:
@@ -325,7 +387,7 @@ class LiftAnalysisGUI:
         lift_type_dropdown = ttk.Combobox(
             self.root_window,
             textvariable=self.lift_type_var,
-            values=["bench", "squat", "deadlift"],
+            values=["bench", "squat"],
             state="readonly",
             width=20
         )
