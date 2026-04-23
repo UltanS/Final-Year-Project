@@ -104,11 +104,14 @@ class RepStateMachine:
             # Transition into descent when lockout is valid
             # and the tracked point begins to move downward
             if (
-                lockout_valid
+                self.top_position_y is not None
                 and vertical_velocity > parameters["velocity_descend"]
             ):
                 self.current_state = "descent"
                 self.bottom_position_y = current_position_y
+                self.repetition_started = False
+                self.pause_frame_count = 0
+                self.rep_flags = set()
 
         # State 2: descent phase
         elif self.current_state == "descent":
@@ -157,7 +160,6 @@ class RepStateMachine:
             # - the tracked point has returned close to the top position
             if (
                 self.repetition_started
-                and lockout_valid
                 and current_position_y
                 <= self.top_position_y + parameters["top_tolerance"]
             ):
